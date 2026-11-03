@@ -8,7 +8,15 @@ require('dotenv').config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+const path = require('path');
 
+// Public folder भित्रको index.html देखाउनको लागि:
+app.use(express.static(path.join(__dirname, 'public')));
+
+// यदि कसैले मुख्य URL ( / ) मा लगइन गर्छ भने index.html पठाउने:
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 // MongoDB Connection
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://demo_user:demo123@cluster0.mongodb.net/ctevt_db?retryWrites=true&w=majority';
 
