@@ -3,20 +3,16 @@ const cors = require('cors');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const mongoose = require('mongoose');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-const path = require('path');
 
-// Public folder भित्रको index.html देखाउनको लागि:
+// Public folder (index.html) serve गर्ने
 app.use(express.static(path.join(__dirname, 'public')));
 
-// यदि कसैले मुख्य URL ( / ) मा लगइन गर्छ भने index.html पठाउने:
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
 // MongoDB Connection
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://demo_user:demo123@cluster0.mongodb.net/ctevt_db?retryWrites=true&w=majority';
 
@@ -48,10 +44,14 @@ const studentSchema = new mongoose.Schema({
 
 const StudentResult = mongoose.model('StudentResult', studentSchema);
 
-// Multer Memory Storage for PDF upload
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Admin Endpoint: Parse CTEVT PDF Notice and Save to DB
+// Main Home Page ( / ) Route
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Admin Endpoint: Parse CTEVT PDF Notice
 app.post('/api/admin/upload-pdf', upload.single('resultPdf'), async (req, res) => {
     try {
         if (!req.file) {
@@ -78,20 +78,18 @@ app.post('/api/admin/upload-pdf', upload.single('resultPdf'), async (req, res) =
                     dob: '2058-05-15',
                     name: `Student (${symbolNo})`,
                     program: 'Diploma in Computer Engineering',
-                    institute: 'CTEVT Constituent/Affiliated Polytechnic',
+                    institute: 'CTEVT Polytechnic',
                     yearSemester: 'Final Year / II Part',
                     status: status,
                     gpa: gpa,
                     subjects: [
                         { code: 'EG3201', name: 'Advanced Database Systems', creditHours: 3, totalMarks: 82, grade: 'A' },
-                        { code: 'EG3202', name: 'Software Engineering', creditHours: 3, totalMarks: 75, grade: 'B+' },
-                        { code: 'EG3203', name: 'Entrepreneurship', creditHours: 2, totalMarks: 88, grade: 'A+' }
+                        { code: 'EG3202', name: 'Software Engineering', creditHours: 3, totalMarks: 75, grade: 'B+' }
                     ]
                 });
             }
         });
 
-        // If no symbol found via regex, add sample parsed record for demo
         if (parsedResults.length === 0) {
             parsedResults.push({
                 symbolNo: "01009988",
@@ -103,8 +101,7 @@ app.post('/api/admin/upload-pdf', upload.single('resultPdf'), async (req, res) =
                 status: "PASSED",
                 gpa: "3.65",
                 subjects: [
-                    { code: 'EG3251', name: 'Design of Steel Structures', creditHours: 4, totalMarks: 85, grade: 'A+' },
-                    { code: 'EG3252', name: 'Estimating & Costing', creditHours: 3, totalMarks: 79, grade: 'A' }
+                    { code: 'EG3251', name: 'Design of Steel Structures', creditHours: 4, totalMarks: 85, grade: 'A+' }
                 ]
             });
         }
@@ -126,14 +123,13 @@ app.post('/api/admin/upload-pdf', upload.single('resultPdf'), async (req, res) =
         });
 
     } catch (error) {
-        console.error('PDF Parse Error:', error);
         res.status(500).json({ error: 'Failed to parse PDF.', details: error.message });
     }
 });
 
-// Public Endpoint: Search Student Result
+// Search API
 app.get('/api/result/search', async (req, res) => {
-    const { symbol, dob } = req.query;
+    const { symbol } = req.query;
     if (!symbol) {
         return res.status(400).json({ error: 'Symbol number is required.' });
     }
@@ -141,7 +137,7 @@ app.get('/api/result/search', async (req, res) => {
     try {
         const student = await StudentResult.findOne({ symbolNo: symbol.trim() });
         if (!student) {
-            return res.status(404).json({ error: 'Result not found for this Symbol Number. Please check and try again.' });
+            return res.status(404).json({ error: 'Result not found for this Symbol Number.' });
         }
         res.json({ success: true, data: student });
     } catch (error) {
